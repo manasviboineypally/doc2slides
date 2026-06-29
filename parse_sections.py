@@ -5,6 +5,7 @@ Group body text under each detected heading.
 import pdfplumber
 from collections import Counter
 from statistics import median
+from schemas.document import Section, DocumentMetadata, ParsedDocument
 
 
 def get_body_font_size(pdf) -> float:
@@ -53,18 +54,18 @@ def extract_lines_with_size(page):
             })
     return result
 
-def detect_sections(pdf_path: str) -> list[dict]:
+def detect_sections(pdf_path: str) -> ParsedDocument:
     """
     Walk through the PDF, detect headings, and group body text under each.
-    Returns a list of sections: [{heading, content, page}, ...]
+    Returns a validated ParsedDocument with Section objects.
     """
-    sections = []
+    raw_sections = []
     current_section = None
     
     with pdfplumber.open(pdf_path) as pdf:
         body_size = get_body_font_size(pdf)
-        # Anything more than 1pt larger than body text counts as a heading
         heading_threshold = body_size + 1.0
+        total_pages = len(pdf.pages)
         
         print(f"Body font size: {body_size}")
         print(f"Heading threshold: > {heading_threshold}\n")
@@ -74,9 +75,8 @@ def detect_sections(pdf_path: str) -> list[dict]:
             
             for line in lines:
                 if line["size"] > heading_threshold:
-                    # This line is a heading — start a new section
                     if current_section:
-                        sections.append(current_section)
+                        raw_sections.append(current_section)
                     current_section = {
                         "heading": line["text"],
                         "size": line["size"],
@@ -84,20 +84,56 @@ def detect_sections(pdf_path: str) -> list[dict]:
                         "content": [],
                     }
                 else:
-                    # Body text — add to current section
                     if current_section:
                         current_section["content"].append(line["text"])
-                    # If no section started yet, ignore (front matter)
         
-        # Don't forget the last section
         if current_section:
-            sections.append(current_section)
+            raw_sections.append(current_section)
     
-    # Join the content lines into a single string
-    for s in sections:
+    # Join content into single strings
+    for s in raw_sections:
         s["content"] = " ".join(s["content"])
     
-    return sections
+    # Return as raw dicts for now — filter_real_sections still uses dicts
+    return raw_sections
+
+
+def build_document(pdf_path: str, filtered_sections: list[dict]) -> ParsedDocument:
+    """
+    Convert filtered dicts into a fully-validated ParsedDocument.
+    This is where dicts become Pydantic models.
+    """
+    with pdfplumber.open(pdf_path) as pdf:
+        body_size = get_body_font_size(pdf)
+        total_pages = len(pdf.pages)
+    
+    # Convert each filtered dict into a validated Section
+    sections = []
+    for i, s in enumerate(filtered_sections, start=1):
+        section = Section(
+            id=f"sec_{i}",
+            heading=s["heading"],
+            content=s["content"],
+            page=s["page"],
+            word_count=len(s["content"].split()),
+            font_size=s["size"],
+        )
+        sections.append(section)
+    
+    # Build the metadata
+    metadata = DocumentMetadata(
+        total_pages=total_pages,
+        total_sections=len(sections),
+        body_font_size=body_size,
+        heading_threshold=body_size + 1.0,
+    )
+    
+    # Wrap it all in a ParsedDocument — Pydantic validates everything
+    return ParsedDocument(
+        source_file=pdf_path,
+        metadata=metadata,
+        sections=sections,
+    )
 
 
 def print_sections(sections: list[dict]) -> None:
@@ -152,35 +188,67 @@ def filter_real_sections(sections: list[dict]) -> list[dict]:
                 continue
             real_sections.append(s)
     
+    # Auto-correct common section labels from content if heading is fragmented
+    # e.g. heading="A" + content="BSTRACT n u Compiler..." → heading becomes "Abstract"
+    SECTION_LABELS = {
+        "abstract": "Abstract",
+        "introduction": "Introduction",
+        "conclusion": "Conclusion",
+        "references": "References",
+        "background": "Background",
+        "discussion": "Discussion",
+        "acknowledg": "Acknowledgments",
+    }
+    
+    for s in real_sections:
+        # Combine heading + start of content, stripping spaces
+        combined_start = (
+            s["heading"].lower().replace(" ", "") + 
+            s["content"][:80].lower().replace(" ", "")
+        )
+        # Limit search to first 80 chars — keyword must appear near the start
+        search_zone = combined_start[:80]
+        
+        for keyword, label in SECTION_LABELS.items():
+            if keyword in search_zone:
+                s["heading"] = label
+                break
     return real_sections
 
 
 if __name__ == "__main__":
     import sys
     
-    # Allow PDF filename as command line argument, default to test.pdf
     pdf_file = sys.argv[1] if len(sys.argv) > 1 else "test.pdf"
     
     try:
-        sections = detect_sections(pdf_file)
+        # Step 1: Raw detection (returns dicts)
+        raw_sections = detect_sections(pdf_file)
+        print(f"Raw detection found {len(raw_sections)} candidates.")
+        
+        # Step 2: Filter false positives
+        filtered = filter_real_sections(raw_sections)
+        print(f"After filtering: {len(filtered)} real sections.\n")
+        
+        # Step 3: Build the validated ParsedDocument
+        document = build_document(pdf_file, filtered)
+        
+        # Step 4: Show the result
+        print("=" * 70)
+        print(f"📄 Document: {document.source_file}")
+        print(f"   Total pages: {document.metadata.total_pages}")
+        print(f"   Sections found: {document.metadata.total_sections}")
+        print(f"   Total words: {document.total_words()}")
+        print("=" * 70)
+        
+        for s in document.sections:
+            print(f"\n[{s.id}] {s.heading}")
+            print(f"  Page: {s.page} | Words: {s.word_count} | Font: {s.font_size}")
+            print(f"  Preview: {s.content[:150]}...")
+        
     except FileNotFoundError:
         print(f"ERROR: Could not find '{pdf_file}'")
-        print(f"\nMake sure the PDF is in: {__file__.rsplit(chr(92), 1)[0]}")
         sys.exit(1)
-    
-    print(f"\nRaw detection found {len(sections)} candidates.")
-    
-    # DEBUG: show ALL raw candidates so we can see what's there
-    print("\n--- ALL RAW CANDIDATES ---")
-    for i, s in enumerate(sections, start=1):
-        word_count = len(s["content"].split())
-        heading_preview = s["heading"][:50]
-        content_preview = s["content"][:80]
-        print(f"[{i}] heading='{heading_preview}' | words={word_count}")
-        print(f"    content_start='{content_preview}'")
-    print("--- END RAW CANDIDATES ---\n")
-    
-    real_sections = filter_real_sections(sections)
-    print(f"After filtering: {len(real_sections)} real sections.\n")
-    
-    print_sections(real_sections)
+    except Exception as e:
+        print(f"ERROR: {type(e).__name__}: {e}")
+        sys.exit(1)
