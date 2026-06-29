@@ -55,3 +55,15 @@ behavior across different PDF types as of Day 2.
 - LLM-based section validation (Week 2 work — Summarizer agent can validate)
 - Handle scanned/image-only PDFs via OCR fallback
 - Detect and discard front-matter (title block, affiliations) before section detection
+
+## Day 3 update — known limitations
+
+- Multi-line affiliation blocks (like paper2.pdf with "University of 
+  Strathclyde, Glasgow, UK") can hide the abstract section behind the 
+  affiliation line. The content is still captured; only the heading 
+  label is wrong.
+- The auto-correct correctly handles "Abstract Interpretation" vs 
+  "Abstract" disambiguation via the AMBIGUOUS_PHRASES list.
+- Tradeoff accepted: stricter matching would miss more abstracts than 
+  it gains. Looser matching creates false positives. Current logic 
+  picks the safer side.
