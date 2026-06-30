@@ -1,5 +1,5 @@
 """Quick sanity check that our Pydantic models work."""
-from schemas.document import Section, DocumentMetadata, ParsedDocument
+from app.schemas.document import Section, DocumentMetadata, ParsedDocument
 
 
 # Test 1: Create a valid Section
