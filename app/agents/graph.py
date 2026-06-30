@@ -8,8 +8,8 @@ This is the only file that needs to change when we add new agents.
 The agents themselves stay independent.
 """
 from langgraph.graph import StateGraph, START, END
-from agents.state import AgentState
-from agents.parser import parser_agent
+from app.agents.state import AgentState
+from app.agents.parser import parser_agent
 
 
 def build_pipeline():

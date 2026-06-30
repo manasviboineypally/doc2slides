@@ -6,7 +6,7 @@ Returns a validated ParsedDocument (Pydantic) ready for the next agent.
 import re
 import pdfplumber
 from collections import Counter
-from schemas.document import Section, DocumentMetadata, ParsedDocument
+from app.schemas.document import Section, DocumentMetadata, ParsedDocument
 
 
 def get_body_font_size(pdf) -> float:

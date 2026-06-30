@@ -12,8 +12,8 @@ The job here is to:
 
 LangGraph automatically merges the dict we return into the state.
 """
-from agents.state import AgentState
-from parse_sections import detect_sections, filter_real_sections, build_document
+from app.agents.state import AgentState
+from app.parser.sections import detect_sections, filter_real_sections, build_document
 
 
 def parser_agent(state: AgentState) -> dict:

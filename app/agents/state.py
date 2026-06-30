@@ -9,7 +9,7 @@ As we add more agents (Summarizer, Planner, Writer, Builder), they'll
 each fill in their own field.
 """
 from typing import TypedDict, Optional, List
-from schemas.document import ParsedDocument
+from app.schemas.document import ParsedDocument
 
 
 class AgentState(TypedDict):
