@@ -67,3 +67,27 @@ behavior across different PDF types as of Day 2.
 - Tradeoff accepted: stricter matching would miss more abstracts than 
   it gains. Looser matching creates false positives. Current logic 
   picks the safer side.
+
+
+
+## Day 5 update — HTTP API live
+
+- ✅ FastAPI endpoint `POST /jobs/` accepts PDF uploads
+- ✅ Interactive Swagger UI auto-generated at `/docs`
+- ✅ Pipeline runs synchronously per request (Day 12 will make it async)
+- ✅ Verified end-to-end: test.pdf → 9 sections returned as clean JSON
+- ⚠️  Uploaded files stay in `uploads/` between requests (no cleanup yet)
+- ⚠️  No job persistence — each request is independent (PostgreSQL on Day 13)
+
+## Day 4 update — LangGraph orchestration
+
+- ✅ Parser wrapped as first node in a StateGraph
+- ✅ Shared AgentState (TypedDict) ready for future agents
+- ✅ Successfully invoked on test.pdf and paper2.pdf
+- Notes: Adding new agents is now a 2-line change to graph.py
+
+## Day 3 update — Pydantic models
+
+- ✅ Section, DocumentMetadata, ParsedDocument typed and validated
+- ✅ Parser refactored to return ParsedDocument instead of dicts
+- ✅ Auto-correct logic handles "Abstract" vs "Abstract Interpretation" disambiguation

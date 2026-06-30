@@ -34,8 +34,25 @@ A multi-agent pipeline built with LangGraph:
 🚧 Currently building this project. Progress:
 - ✅ Day 1: PDF text extraction
 - ✅ Day 2: Section detection with font analysis
-- 🔲 Day 3: Pydantic data models
-- 🔲 Week 2: Multi-agent pipeline
-- 🔲 Week 3: FastAPI + deployment
+- ✅ Day 3: Pydantic data models
+- ✅ Day 4: LangGraph multi-agent orchestration
+- ✅ Day 5: FastAPI HTTP layer + interactive Swagger docs
+- 🔲 Day 6: ChromaDB + chunking
+- 🔲 Week 2: Summarizer, Planner, Writer, Builder agents
+- 🔲 Week 3: Async background jobs + deployment
 
-See `testing_notes.md` for known limitations and test results.
+## Try it locally
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the API
+uvicorn app.main:app --reload
+
+# Open the interactive docs
+# http://localhost:8000/docs
+```
+
+Upload any PDF via the `/jobs/` endpoint and get back structured 
+section data extracted by the LangGraph pipeline.
