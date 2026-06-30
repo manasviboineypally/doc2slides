@@ -29,17 +29,27 @@ A multi-agent pipeline built with LangGraph:
 - **PowerPoint generation:** python-pptx
 - **Database:** PostgreSQL
 
-## Status
+## Current status
 
-🚧 Currently building this project. Progress:
-- ✅ Day 1: PDF text extraction
-- ✅ Day 2: Section detection with font analysis
-- ✅ Day 3: Pydantic data models
-- ✅ Day 4: LangGraph multi-agent orchestration
-- ✅ Day 5: FastAPI HTTP layer + interactive Swagger docs
-- 🔲 Day 6: ChromaDB + chunking
-- 🔲 Week 2: Summarizer, Planner, Writer, Builder agents
-- 🔲 Week 3: Async background jobs + deployment
+Building in public — production-ready foundations done, AI agents in progress.
+
+**✅ Completed**
+- PDF parsing with font-aware section detection
+- Pydantic data contracts across the pipeline
+- LangGraph multi-agent orchestration
+- FastAPI HTTP layer with auto-generated Swagger docs
+- ChromaDB vector store with semantic search (RAG foundation)
+
+**🚧 In progress**
+- Summarizer agent (LLM-powered section summarization via Gemini)
+
+**📋 Planned**
+- Planner agent (slide structure generation)
+- Writer agent (audience-adaptive slide content)
+- Builder agent (.pptx file generation)
+- Async background jobs with PostgreSQL
+- Deployment + public demo URL
+
 
 ## Try it locally
 
