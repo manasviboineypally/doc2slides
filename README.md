@@ -23,7 +23,7 @@ A multi-agent pipeline built with LangGraph:
 
 - **Backend:** Python, FastAPI
 - **Agents:** LangGraph, LangChain
-- **LLM:** Google Gemini
+- **LLM:** OpenAI GPT-4o-mini
 - **Vector DB:** ChromaDB
 - **PDF parsing:** pdfplumber, PyMuPDF
 - **PowerPoint generation:** python-pptx
@@ -39,9 +39,10 @@ Building in public — production-ready foundations done, AI agents in progress.
 - LangGraph multi-agent orchestration
 - FastAPI HTTP layer with auto-generated Swagger docs
 - ChromaDB vector store with semantic search (RAG foundation)
+- Summarizer agent (LLM-powered section summarization via GPT-4o-mini)
 
 **🚧 In progress**
-- Summarizer agent (LLM-powered section summarization via Gemini)
+- Planner agent (slide structure generation)
 
 **📋 Planned**
 - Planner agent (slide structure generation)

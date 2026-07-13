@@ -1,15 +1,16 @@
 """
 LangGraph orchestration for the Doc2Slides pipeline.
 
-Today (Day 4) the graph has just one node — the Parser. 
-As we add agents on later days, we'll add more nodes and edges here.
+Current structure: START → parser → summarizer → END
 
+As we add agents on later days, we'll add more nodes and edges here.
 This is the only file that needs to change when we add new agents.
 The agents themselves stay independent.
 """
 from langgraph.graph import StateGraph, START, END
 from app.agents.state import AgentState
 from app.agents.parser import parser_agent
+from app.agents.summarizer import summarizer_agent
 
 
 def build_pipeline():
@@ -17,22 +18,22 @@ def build_pipeline():
     Build the agent pipeline.
     
     Current structure:
-        START → parser → END
+        START → parser → summarizer → END
     
     Future structure (Week 2):
         START → parser → summarizer → planner → writer → builder → END
     """
-    # Create a graph that operates on AgentState
     graph = StateGraph(AgentState)
     
-    # Register the parser node
+    # Register nodes
     graph.add_node("parser", parser_agent)
+    graph.add_node("summarizer", summarizer_agent)
     
-    # Define the flow: START → parser → END
+    # Define flow
     graph.add_edge(START, "parser")
-    graph.add_edge("parser", END)
+    graph.add_edge("parser", "summarizer")
+    graph.add_edge("summarizer", END)
     
-    # Compile into a runnable pipeline
     return graph.compile()
 
 
@@ -46,11 +47,10 @@ if __name__ == "__main__":
     
     pdf_file = sys.argv[1] if len(sys.argv) > 1 else "test.pdf"
     
-    # Build the initial state — fields the Parser doesn't fill in start empty
     initial_state: AgentState = {
         "pdf_path": pdf_file,
-        "audience": "student",          # placeholder — Writer will use this later
-        "slide_count": 10,              # placeholder — Planner will use this later
+        "audience": "student",
+        "slide_count": 10,
         "parsed_doc": None,
         "section_summaries": None,
         "slide_plan": None,
@@ -64,7 +64,6 @@ if __name__ == "__main__":
     print("🚀 Starting Doc2Slides pipeline")
     print("=" * 70)
     
-    # Run the pipeline — this is the magic line
     final_state = pipeline.invoke(initial_state)
     
     print("\n" + "=" * 70)
@@ -79,8 +78,19 @@ if __name__ == "__main__":
         print(f"Total pages:     {doc.metadata.total_pages}")
         print(f"Sections found:  {doc.metadata.total_sections}")
         print(f"Total words:     {doc.total_words()}")
+        
         print(f"\nFirst 3 sections:")
         for s in doc.sections[:3]:
             print(f"  [{s.id}] {s.heading} ({s.word_count} words)")
+        
+        # Print summaries if the Summarizer ran
+        if final_state.get("section_summaries"):
+            print(f"\n" + "=" * 70)
+            print("📝 Section Summaries (first 3)")
+            print("=" * 70)
+            for section in doc.sections[:3]:
+                summary = final_state["section_summaries"].get(section.id, "N/A")
+                print(f"\n[{section.id}] {section.heading}")
+                print(f"  → {summary}")
     else:
         print("No document parsed — check errors above.")
