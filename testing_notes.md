@@ -36,3 +36,17 @@
 - Tested on test.pdf (9 summaries) and paper2.pdf (16 summaries)
 - Confirmed real cost: 18 API calls = $0.002 total spend
 - Notes: Clean architecture made LLM provider swap a 5-line change in summarizer.py
+
+
+### Planner agent
+- Built with OpenAI gpt-4o-mini using JSON mode + Pydantic validation
+- Two-layer structured output: `response_format={"type": "json_object"}` guarantees valid JSON, Pydantic guarantees correct schema
+- Wired into LangGraph as third node (parser → summarizer → planner → END)
+- API endpoint accepts audience (kid/student/engineer/executive) and slide_count (5/10/15)
+- Verified different audiences produce meaningfully different plans (e.g., "Fun with Compilers!" for kid vs "Advancements in Compiler Design: Leveraging Formal Theories" for executive)
+- Observation: highly technical papers limit how simple even "kid" plans can be — Writer agent will need strong analogy generation
+
+### Evaluation harness (planned)
+- Parser: section detection precision/recall against ground truth
+- RAG: retrieval precision@K on hand-labeled query→chunk pairs
+- Summarizer: LLM-as-judge scoring on faithfulness, completeness, clarity

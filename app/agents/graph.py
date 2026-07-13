@@ -1,7 +1,7 @@
 """
 LangGraph orchestration for the Doc2Slides pipeline.
 
-Current structure: START → parser → summarizer → END
+Current structure: START → parser → summarizer → planner → END
 
 As we add agents on later days, we'll add more nodes and edges here.
 This is the only file that needs to change when we add new agents.
@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, START, END
 from app.agents.state import AgentState
 from app.agents.parser import parser_agent
 from app.agents.summarizer import summarizer_agent
+from app.agents.planner import planner_agent
 
 
 def build_pipeline():
@@ -18,9 +19,9 @@ def build_pipeline():
     Build the agent pipeline.
     
     Current structure:
-        START → parser → summarizer → END
+        START → parser → summarizer → planner → END
     
-    Future structure (Week 2):
+    Future structure:
         START → parser → summarizer → planner → writer → builder → END
     """
     graph = StateGraph(AgentState)
@@ -28,11 +29,13 @@ def build_pipeline():
     # Register nodes
     graph.add_node("parser", parser_agent)
     graph.add_node("summarizer", summarizer_agent)
+    graph.add_node("planner", planner_agent)
     
     # Define flow
     graph.add_edge(START, "parser")
     graph.add_edge("parser", "summarizer")
-    graph.add_edge("summarizer", END)
+    graph.add_edge("summarizer", "planner")
+    graph.add_edge("planner", END)
     
     return graph.compile()
 
@@ -47,10 +50,14 @@ if __name__ == "__main__":
     
     pdf_file = sys.argv[1] if len(sys.argv) > 1 else "test.pdf"
     
+    # Allow overriding via command line: python -m app.agents.graph <pdf> <audience> <count>
+    audience = sys.argv[2] if len(sys.argv) > 2 else "student"
+    slide_count = int(sys.argv[3]) if len(sys.argv) > 3 else 10
+
     initial_state: AgentState = {
         "pdf_path": pdf_file,
-        "audience": "student",
-        "slide_count": 10,
+        "audience": audience,
+        "slide_count": slide_count,
         "parsed_doc": None,
         "section_summaries": None,
         "slide_plan": None,
@@ -92,5 +99,17 @@ if __name__ == "__main__":
                 summary = final_state["section_summaries"].get(section.id, "N/A")
                 print(f"\n[{section.id}] {section.heading}")
                 print(f"  → {summary}")
+        
+        # Print slide plan if the Planner ran
+        if final_state.get("slide_plan"):
+            plan = final_state["slide_plan"]
+            print(f"\n" + "=" * 70)
+            print(f"🎯 Slide Plan (audience: {plan['audience']})")
+            print("=" * 70)
+            for slide in plan["slides"]:
+                sources = ", ".join(slide["sources"]) if slide["sources"] else "-"
+                print(f"\n  Slide {slide['index']} [{slide['type']}]: {slide['title']}")
+                print(f"    Theme: {slide['theme']}")
+                print(f"    Sources: {sources}")
     else:
         print("No document parsed — check errors above.")

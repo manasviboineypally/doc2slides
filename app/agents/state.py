@@ -8,6 +8,7 @@ merges agent outputs into the shared state object.
 As we add more agents (Summarizer, Planner, Writer, Builder), they'll 
 each fill in their own field.
 """
+from app.schemas.plan import DeckPlan
 from typing import TypedDict, Optional, List
 from app.schemas.document import ParsedDocument
 

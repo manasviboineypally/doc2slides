@@ -4,7 +4,7 @@ Job endpoints — accept PDF uploads, run the pipeline, return results.
 import shutil
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
 from app.agents.graph import pipeline
 from app.agents.state import AgentState
@@ -17,30 +17,48 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.post("/")
-async def create_job(file: UploadFile = File(...)):
+async def create_job(
+    file: UploadFile = File(...),
+    audience: str = Form("student"),
+    slide_count: int = Form(10),
+):
     """
-    Accept a PDF, run the pipeline, return parsed sections.
+    Accept a PDF + audience preference, run the pipeline, return parsed
+    sections, summaries, and slide plan.
     
-    Today (Day 5) this runs synchronously — we wait for the parser to 
-    finish before responding. On Day 12 we'll make it async with 
-    background tasks.
+    Runs synchronously — we wait for the pipeline to finish before responding.
+    Async background job support is planned.
     """
-    # 1. Validate
+    # ── Validate file ─────────────────────────────────────────────────────
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
     
-    # 2. Save uploaded file with a unique name
+    # ── Validate audience & slide count ───────────────────────────────────
+    valid_audiences = {"kid", "student", "engineer", "executive"}
+    if audience not in valid_audiences:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid audience. Must be one of: {sorted(valid_audiences)}",
+        )
+    
+    if slide_count not in (5, 10, 15):
+        raise HTTPException(
+            status_code=400,
+            detail="slide_count must be 5, 10, or 15",
+        )
+    
+    # ── Save uploaded file with a unique name ─────────────────────────────
     job_id = str(uuid.uuid4())[:8]
     pdf_path = UPLOAD_DIR / f"{job_id}_{file.filename}"
     
     with open(pdf_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
     
-    # 3. Build initial state and run pipeline
+    # ── Build initial state and run pipeline ──────────────────────────────
     initial_state: AgentState = {
         "pdf_path": str(pdf_path),
-        "audience": "student",
-        "slide_count": 10,
+        "audience": audience,
+        "slide_count": slide_count,
         "parsed_doc": None,
         "section_summaries": None,
         "slide_plan": None,
@@ -52,7 +70,7 @@ async def create_job(file: UploadFile = File(...)):
     
     final_state = pipeline.invoke(initial_state)
     
-    # 4. Return a JSON response
+    # ── Return a JSON response ────────────────────────────────────────────
     if final_state["parsed_doc"] is None:
         raise HTTPException(
             status_code=500,
@@ -64,6 +82,8 @@ async def create_job(file: UploadFile = File(...)):
         "job_id": job_id,
         "status": final_state["current_step"],
         "filename": file.filename,
+        "audience": audience,
+        "slide_count": slide_count,
         "total_pages": doc.metadata.total_pages,
         "sections_found": doc.metadata.total_sections,
         "total_words": doc.total_words(),
@@ -76,4 +96,6 @@ async def create_job(file: UploadFile = File(...)):
             }
             for s in doc.sections
         ],
+        "section_summaries": final_state.get("section_summaries"),
+        "slide_plan": final_state.get("slide_plan"),
     }

@@ -40,9 +40,10 @@ Building in public — production-ready foundations done, AI agents in progress.
 - FastAPI HTTP layer with auto-generated Swagger docs
 - ChromaDB vector store with semantic search (RAG foundation)
 - Summarizer agent (LLM-powered section summarization via GPT-4o-mini)
+- Planner agent (slide structure generation)
 
 **🚧 In progress**
-- Planner agent (slide structure generation)
+- Writer agent 
 
 **📋 Planned**
 - Planner agent (slide structure generation)
