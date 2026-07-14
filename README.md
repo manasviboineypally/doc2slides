@@ -42,16 +42,18 @@ Building in public — production-ready foundations done, AI agents in progress.
 - Summarizer agent (LLM-powered section summarization via GPT-4o-mini)
 - Planner agent (structured slide plan via JSON mode + Pydantic)
 - Writer agent (audience-adaptive slide content generation)
+- Builder agent (editable .pptx file generation via python-pptx)
+- HTTP download endpoint (`GET /jobs/download/{filename}`)
 
 **🚧 In progress**
-- Builder agent (.pptx file generation via python-pptx)
+- End-to-end testing across multiple audiences
 
 **📋 Planned**
-- Planner agent (slide structure generation)
-- Writer agent (audience-adaptive slide content)
-- Builder agent (.pptx file generation)
-- Async background jobs with PostgreSQL
-- Deployment + public demo URL
+- Async background jobs
+- PostgreSQL job persistence
+- Minimal HTML UI
+- Deployment
+
 
 
 ## Try it locally

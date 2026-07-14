@@ -56,6 +56,16 @@
   - Kid: "Like magic spells for computers"
   - Student: "Term rewriting uses rules to transform expressions"
 
+### Builder agent + HTTP download endpoint
+- Uses python-pptx to generate real editable PowerPoint files
+- Title slide + one slide per written entry (title + bullets + speaker notes)
+- Output saved to outputs/ (gitignored) with format {job_id}_{doc}_{audience}_{count}slides.pptx
+- New GET /jobs/download/{filename} endpoint serves generated files with proper MIME type
+- Verified end-to-end HTTP flow: upload via Swagger → pipeline runs → download URL returned → file downloads → opens correctly in PowerPoint
+
+
+
+
 
 ### Evaluation harness (planned)
 - Parser: section detection precision/recall against ground truth
