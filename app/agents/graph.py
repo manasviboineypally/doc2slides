@@ -1,9 +1,8 @@
 """
 LangGraph orchestration for the Doc2Slides pipeline.
 
-Current structure: START → parser → summarizer → planner → END
+Current structure: START → parser → summarizer → planner → writer → END
 
-As we add agents on later days, we'll add more nodes and edges here.
 This is the only file that needs to change when we add new agents.
 The agents themselves stay independent.
 """
@@ -12,6 +11,7 @@ from app.agents.state import AgentState
 from app.agents.parser import parser_agent
 from app.agents.summarizer import summarizer_agent
 from app.agents.planner import planner_agent
+from app.agents.writer import writer_agent
 
 
 def build_pipeline():
@@ -19,7 +19,7 @@ def build_pipeline():
     Build the agent pipeline.
     
     Current structure:
-        START → parser → summarizer → planner → END
+        START → parser → summarizer → planner → writer → END
     
     Future structure:
         START → parser → summarizer → planner → writer → builder → END
@@ -30,12 +30,14 @@ def build_pipeline():
     graph.add_node("parser", parser_agent)
     graph.add_node("summarizer", summarizer_agent)
     graph.add_node("planner", planner_agent)
+    graph.add_node("writer", writer_agent)
     
     # Define flow
     graph.add_edge(START, "parser")
     graph.add_edge("parser", "summarizer")
     graph.add_edge("summarizer", "planner")
-    graph.add_edge("planner", END)
+    graph.add_edge("planner", "writer")
+    graph.add_edge("writer", END)
     
     return graph.compile()
 
@@ -49,11 +51,9 @@ if __name__ == "__main__":
     import sys
     
     pdf_file = sys.argv[1] if len(sys.argv) > 1 else "test.pdf"
-    
-    # Allow overriding via command line: python -m app.agents.graph <pdf> <audience> <count>
     audience = sys.argv[2] if len(sys.argv) > 2 else "student"
     slide_count = int(sys.argv[3]) if len(sys.argv) > 3 else 10
-
+    
     initial_state: AgentState = {
         "pdf_path": pdf_file,
         "audience": audience,
@@ -69,6 +69,10 @@ if __name__ == "__main__":
     
     print("=" * 70)
     print("🚀 Starting Doc2Slides pipeline")
+    print("=" * 70)
+    print(f"PDF:          {pdf_file}")
+    print(f"Audience:     {audience}")
+    print(f"Slide count:  {slide_count}")
     print("=" * 70)
     
     final_state = pipeline.invoke(initial_state)
@@ -111,5 +115,17 @@ if __name__ == "__main__":
                 print(f"\n  Slide {slide['index']} [{slide['type']}]: {slide['title']}")
                 print(f"    Theme: {slide['theme']}")
                 print(f"    Sources: {sources}")
+        
+        # Print written slides if the Writer ran
+        if final_state.get("written_slides"):
+            print(f"\n" + "=" * 70)
+            print("✍️  Written Slides (first 3)")
+            print("=" * 70)
+            for slide in final_state["written_slides"][:3]:
+                print(f"\n  Slide {slide['index']}: {slide['title']}")
+                for b in slide.get("bullets", []):
+                    print(f"    • {b}")
+                if slide.get("speaker_notes"):
+                    print(f"    📝 {slide['speaker_notes']}")
     else:
         print("No document parsed — check errors above.")
