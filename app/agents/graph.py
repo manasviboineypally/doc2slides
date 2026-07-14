@@ -12,6 +12,7 @@ from app.agents.parser import parser_agent
 from app.agents.summarizer import summarizer_agent
 from app.agents.planner import planner_agent
 from app.agents.writer import writer_agent
+from app.agents.builder import builder_agent
 
 
 def build_pipeline():
@@ -31,13 +32,14 @@ def build_pipeline():
     graph.add_node("summarizer", summarizer_agent)
     graph.add_node("planner", planner_agent)
     graph.add_node("writer", writer_agent)
-    
+    graph.add_node("builder", builder_agent)
     # Define flow
     graph.add_edge(START, "parser")
     graph.add_edge("parser", "summarizer")
     graph.add_edge("summarizer", "planner")
     graph.add_edge("planner", "writer")
-    graph.add_edge("writer", END)
+    graph.add_edge("writer", "builder")
+    graph.add_edge("builder", END)
     
     return graph.compile()
 
@@ -127,5 +129,14 @@ if __name__ == "__main__":
                     print(f"    • {b}")
                 if slide.get("speaker_notes"):
                     print(f"    📝 {slide['speaker_notes']}")
+
+        # Print output file path if the Builder ran
+        if final_state.get("output_path"):
+            print(f"\n" + "=" * 70)
+            print("🎨 PowerPoint Generated")
+            print("=" * 70)
+            print(f"  File: {final_state['output_path']}")
+            print(f"  Open it in PowerPoint or LibreOffice to view.")
+
     else:
         print("No document parsed — check errors above.")
