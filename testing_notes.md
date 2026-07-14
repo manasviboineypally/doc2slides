@@ -46,6 +46,17 @@
 - Verified different audiences produce meaningfully different plans (e.g., "Fun with Compilers!" for kid vs "Advancements in Compiler Design: Leveraging Formal Theories" for executive)
 - Observation: highly technical papers limit how simple even "kid" plans can be — Writer agent will need strong analogy generation
 
+### Writer agent
+- Built with OpenAI gpt-4o-mini + JSON mode + Pydantic validation (Slide, WrittenDeck)
+- Reads slide_plan + section_summaries + parsed_doc; writes structured slide content
+- Each slide: title, 3-5 bullets (5-15 words each), 1-3 sentence speaker notes
+- Audience-adaptive prompts (kid/student/engineer/executive)
+- Fallback stub-slide on failure so pipeline never breaks completely
+- Verified: same paper produces meaningfully different slide content per audience
+  - Kid: "Like magic spells for computers"
+  - Student: "Term rewriting uses rules to transform expressions"
+
+
 ### Evaluation harness (planned)
 - Parser: section detection precision/recall against ground truth
 - RAG: retrieval precision@K on hand-labeled query→chunk pairs
