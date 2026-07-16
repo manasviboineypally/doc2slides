@@ -1,36 +1,100 @@
 """
-Job endpoints — accept PDF uploads, run the pipeline, return results.
+Job endpoints — accept PDF uploads, run the pipeline asynchronously.
+
+Flow:
+1. POST /jobs/         → creates a job, schedules pipeline as background task, returns job_id
+2. GET /jobs/{job_id}  → returns current status of the job
+3. GET /jobs/download/{filename} → serves the finished .pptx file
 """
 import shutil
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.agents.graph import pipeline
 from app.agents.state import AgentState
+from app.api.job_store import create_job, update_job, get_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
-# Where uploaded files temporarily live
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# Where generated .pptx files land
 OUTPUT_DIR = Path("outputs")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 
+def run_pipeline_task(job_id: str, pdf_path: str, audience: str, slide_count: int):
+    """
+    The actual pipeline runner. Runs in the background.
+    Updates the job_store as the pipeline progresses.
+    """
+    from datetime import datetime
+    
+    update_job(job_id, status="processing", started_at=datetime.utcnow().isoformat())
+    
+    initial_state: AgentState = {
+        "pdf_path": pdf_path,
+        "audience": audience,
+        "slide_count": slide_count,
+        "parsed_doc": None,
+        "section_summaries": None,
+        "slide_plan": None,
+        "written_slides": None,
+        "output_path": None,
+        "errors": [],
+        "current_step": "starting",
+    }
+    
+    try:
+        final_state = pipeline.invoke(initial_state)
+        
+        # Extract useful data for the client
+        doc = final_state["parsed_doc"]
+        output_path = final_state.get("output_path")
+        
+        result = {
+            "total_pages": doc.metadata.total_pages if doc else None,
+            "sections_found": doc.metadata.total_sections if doc else None,
+            "total_words": doc.total_words() if doc else None,
+            "download_url": f"/jobs/download/{Path(output_path).name}" if output_path else None,
+            "sections": [
+                {"id": s.id, "heading": s.heading, "page": s.page, "word_count": s.word_count}
+                for s in doc.sections
+            ] if doc else [],
+            "section_summaries": final_state.get("section_summaries"),
+            "slide_plan": final_state.get("slide_plan"),
+            "written_slides": final_state.get("written_slides"),
+        }
+        
+        update_job(
+            job_id,
+            status="completed",
+            completed_at=datetime.utcnow().isoformat(),
+            current_step=final_state["current_step"],
+            result=result,
+        )
+    
+    except Exception as e:
+        update_job(
+            job_id,
+            status="failed",
+            completed_at=datetime.utcnow().isoformat(),
+            error=f"{type(e).__name__}: {e}",
+        )
+
+
 @router.post("/")
-async def create_job(
+async def create_job_endpoint(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     audience: str = Form("student"),
     slide_count: int = Form(10),
 ):
     """
-    Accept a PDF + audience preference, run the pipeline, return parsed
-    sections, summaries, slide plan, written slides, and a download URL
-    for the generated .pptx file.
+    Accept a PDF upload, schedule the pipeline in the background,
+    and return a job_id immediately for polling.
     """
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
@@ -55,59 +119,34 @@ async def create_job(
     with open(pdf_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
     
-    # Build initial state and run pipeline
-    initial_state: AgentState = {
-        "pdf_path": str(pdf_path),
-        "audience": audience,
-        "slide_count": slide_count,
-        "parsed_doc": None,
-        "section_summaries": None,
-        "slide_plan": None,
-        "written_slides": None,
-        "output_path": None,
-        "errors": [],
-        "current_step": "starting",
-    }
+    # Register the job as pending
+    create_job(job_id, file.filename, audience, slide_count)
     
-    final_state = pipeline.invoke(initial_state)
+    # Schedule the pipeline to run in the background
+    background_tasks.add_task(
+        run_pipeline_task,
+        job_id=job_id,
+        pdf_path=str(pdf_path),
+        audience=audience,
+        slide_count=slide_count,
+    )
     
-    if final_state["parsed_doc"] is None:
-        raise HTTPException(
-            status_code=500,
-            detail={"errors": final_state["errors"]},
-        )
-    
-    # Build download URL from the output path
-    output_path = final_state.get("output_path")
-    download_url = None
-    if output_path:
-        filename = Path(output_path).name
-        download_url = f"/jobs/download/{filename}"
-    
-    doc = final_state["parsed_doc"]
+    # Return immediately with the job_id
     return {
         "job_id": job_id,
-        "status": final_state["current_step"],
-        "filename": file.filename,
-        "audience": audience,
-        "slide_count": slide_count,
-        "total_pages": doc.metadata.total_pages,
-        "sections_found": doc.metadata.total_sections,
-        "total_words": doc.total_words(),
-        "download_url": download_url,
-        "sections": [
-            {
-                "id": s.id,
-                "heading": s.heading,
-                "page": s.page,
-                "word_count": s.word_count,
-            }
-            for s in doc.sections
-        ],
-        "section_summaries": final_state.get("section_summaries"),
-        "slide_plan": final_state.get("slide_plan"),
-        "written_slides": final_state.get("written_slides"),
+        "status": "pending",
+        "message": "Job created. Poll GET /jobs/{job_id} for status.",
+        "poll_url": f"/jobs/{job_id}",
     }
+
+
+@router.get("/{job_id}")
+async def get_job_status(job_id: str):
+    """Poll this endpoint to check job status."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 
 @router.get("/download/{filename}")
@@ -115,7 +154,6 @@ async def download_file(filename: str):
     """Serve a generated .pptx file for download."""
     file_path = OUTPUT_DIR / filename
     
-    # Prevent path traversal attacks
     if not file_path.exists() or file_path.parent.resolve() != OUTPUT_DIR.resolve():
         raise HTTPException(status_code=404, detail="File not found")
     

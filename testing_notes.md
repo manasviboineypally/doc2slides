@@ -64,6 +64,51 @@
 - Verified end-to-end HTTP flow: upload via Swagger → pipeline runs → download URL returned → file downloads → opens correctly in PowerPoint
 
 
+### Design choice: Slide count and content density
+
+The Planner respects the user's requested slide count exactly. This is a
+deliberate design choice — users have real constraints (presentation time
+slots, class rules, executive attention spans) and silent AI overrides
+break user trust.
+
+**Tradeoff:** when the paper's actual content density doesn't match the
+requested slide count, the LLM may pad shallow sections or compress dense
+ones. This creates mild redundancy at high slide counts (e.g., 15 slides
+from a 9-section paper occasionally produces meta-slides like "References"
+or overlapping topic slides).
+
+**Rejected quick fix:** using section word count as a proxy for content
+density. Word count is not density — a short section may contain multiple
+distinct ideas while a long section may ramble around one idea.
+
+**Proper solution deferred:** content-aware slide allocation with LLM
+judgment, verified by an evaluation harness that measures output quality
+against ground truth. Requires infrastructure work not appropriate for the
+initial version.
+
+**Current approach:** ship with predictable user control, document the
+tradeoff honestly, revisit with real user feedback and eval infrastructure.
+
+
+### Async job processing
+
+Refactored `POST /jobs/` to return immediately (~1 second) with a job_id
+instead of blocking for 60-90 seconds while the pipeline runs. Uses FastAPI
+BackgroundTasks with a simple in-memory job store (dict).
+
+Flow:
+- POST /jobs/ → returns { job_id, status: "pending" } immediately
+- Pipeline runs in background thread (Parser → Summarizer → Planner → Writer → Builder)
+- GET /jobs/{job_id} → returns current status ("pending" → "processing" → "completed" or "failed")
+- GET /jobs/download/{filename} → serves the .pptx once completed
+
+Verified end-to-end: response time on POST is ~1s (was 60-90s). Timestamps
+show pipeline runs asynchronously — created_at and started_at within 10ms,
+completed_at 42 seconds later.
+
+Known limitation: in-memory job store means jobs disappear on server
+restart. PostgreSQL persistence is next.
+
 
 
 

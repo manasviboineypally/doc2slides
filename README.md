@@ -44,9 +44,13 @@ Building in public — production-ready foundations done, AI agents in progress.
 - Writer agent (audience-adaptive slide content generation)
 - Builder agent (editable .pptx file generation via python-pptx)
 - HTTP download endpoint (`GET /jobs/download/{filename}`)
+- End-to-end testing across multiple audiences
+-Async job processing with polling (`POST /jobs/` returns immediately, `GET /jobs/{job_id}` for status)
+
 
 **🚧 In progress**
-- End-to-end testing across multiple audiences
+- PostgreSQL job persistence
+
 
 **📋 Planned**
 - Async background jobs
