@@ -30,33 +30,42 @@ def add_title_slide(prs: Presentation, title: str, subtitle: str):
 
 def add_content_slide(prs: Presentation, title: str, bullets: list, speaker_notes: str = None):
     """Add a content slide with title, bullet points, and optional speaker notes."""
-    slide_layout = prs.slide_layouts[1]  # 1 = title + content layout
+    slide_layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(slide_layout)
     
-    # Set the title
+    # Guard against absurdly long titles that break layout
+    if len(title) > 100:
+        title = title[:97] + "..."
     slide.shapes.title.text = title
     
-    # Fill in the bullets
+    # Fill in bullets — skip empty ones
     body_placeholder = slide.placeholders[1]
     text_frame = body_placeholder.text_frame
     text_frame.clear()
     
-    for i, bullet in enumerate(bullets):
+    valid_bullets = [b for b in bullets if b and b.strip()]
+    if not valid_bullets:
+        valid_bullets = ["(No content generated for this slide)"]
+    
+    for i, bullet in enumerate(valid_bullets):
+        # Cap bullet length to prevent overflow
+        clean_bullet = bullet.strip()
+        if len(clean_bullet) > 200:
+            clean_bullet = clean_bullet[:197] + "..."
+        
         if i == 0:
-            # First bullet uses the existing paragraph
             para = text_frame.paragraphs[0]
         else:
-            # Subsequent bullets get new paragraphs
             para = text_frame.add_paragraph()
         
-        para.text = bullet
+        para.text = clean_bullet
         para.font.size = Pt(20)
         para.level = 0
     
     # Add speaker notes if provided
-    if speaker_notes:
+    if speaker_notes and speaker_notes.strip():
         notes_slide = slide.notes_slide
-        notes_slide.notes_text_frame.text = speaker_notes
+        notes_slide.notes_text_frame.text = speaker_notes.strip()
 
 
 def builder_agent(state: AgentState) -> dict:
@@ -83,8 +92,12 @@ def builder_agent(state: AgentState) -> dict:
         sorted_slides = sorted(written, key=lambda s: s["index"])
         
         # Build a title slide from the document name + audience
+        # Strip job_id prefix (8 hex chars + underscore) and clean up
         doc_name = Path(doc.source_file).stem
-        pretty_title = doc_name.replace("_", " ").title()
+        # Remove leading job_id if present (matches "abc12345_" pattern)
+        import re
+        cleaned = re.sub(r"^[a-f0-9]{8}_", "", doc_name)
+        pretty_title = cleaned.replace("_", " ").replace("-", " ").title()
         subtitle = f"Tailored for {audience}s • {len(sorted_slides)} slides"
         add_title_slide(prs, pretty_title, subtitle)
         
