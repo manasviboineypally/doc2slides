@@ -46,10 +46,11 @@ Building in public — production-ready foundations done, AI agents in progress.
 - HTTP download endpoint (`GET /jobs/download/{filename}`)
 - End-to-end testing across multiple audiences
 -Async job processing with polling (`POST /jobs/` returns immediately, `GET /jobs/{job_id}` for status)
+- PostgreSQL job persistence
 
 
 **🚧 In progress**
-- PostgreSQL job persistence
+-UI in progress
 
 
 **📋 Planned**

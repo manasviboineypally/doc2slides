@@ -110,6 +110,19 @@ Known limitation: in-memory job store means jobs disappear on server
 restart. PostgreSQL persistence is next.
 
 
+### PostgreSQL persistence
+
+Replaced in-memory dict-based job_store with SQLAlchemy + PostgreSQL.
+
+Architecture:
+- Job model in `app/db/models.py`
+- Session management in `app/db/session.py`
+- Repository pattern in `app/api/job_store.py` (create/get/update/all_jobs)
+- Database URL from environment (`DATABASE_URL` in .env)
+
+Verified: server can be restarted mid-session, previously created jobs remain queryable via GET /jobs/{job_id} with full state (result, timestamps, etc).
+
+Design decision: env-driven database URL means SQLite dev → PostgreSQL prod is a one-line change (relevant for Day 16 deployment on Railway).
 
 
 ### Evaluation harness (planned)
