@@ -1,9 +1,12 @@
 """
 FastAPI application entry point.
-Run with: uvicorn app.main:app --reload
 """
 from fastapi import FastAPI
 from app.api import jobs
+from app.db.session import init_db
+
+# Create tables if they don't exist
+init_db()
 
 app = FastAPI(
     title="Doc2Slides API",
