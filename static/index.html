@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Doc2Slides — AI Presentation Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0f;
+    --surface: #14141b;
+    --surface-2: #1c1c26;
+    --border: #262632;
+    --text: #ffffff;
+    --text-dim: #8b8b9e;
+    --accent: #6366f1;
+    --accent-hover: #7c7ff5;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+  }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 20px;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.12), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.10), transparent 40%);
+  }
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .logo {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tagline {
+    color: var(--text-dim);
+    font-size: 17px;
+    font-weight: 400;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .field { margin-bottom: 28px; }
+  .field:last-child { margin-bottom: 0; }
+  .label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 10px;
+    letter-spacing: 0.01em;
+  }
+  .helper {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  
+  /* File drop area */
+  .drop-zone {
+    display: block;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface-2);
+  }
+  .drop-zone:hover {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.05);
+  }
+  .drop-zone.dragging {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+    transform: scale(1.01);
+  }
+  .drop-zone.has-file {
+    border-style: solid;
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+    text-align: left;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .drop-icon { font-size: 32px; margin-bottom: 8px; opacity: 0.6; }
+  .drop-text { font-size: 15px; color: var(--text); }
+  .drop-hint { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+  .file-info { flex: 1; }
+  .file-name { font-weight: 500; font-size: 15px; margin-bottom: 4px; }
+  .file-size { font-size: 13px; color: var(--text-dim); }
+  .file-remove {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .file-remove:hover { color: var(--text); background: var(--border); }
+  #file { display: none; }
+  
+  /* Audience cards */
+  .audience-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .audience-card {
+    padding: 18px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .audience-card:hover {
+    border-color: var(--text-dim);
+    transform: translateY(-1px);
+  }
+  .audience-card.selected {
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+  }
+  .audience-emoji { font-size: 24px; margin-bottom: 8px; }
+  .audience-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .audience-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  
+  /* Number input */
+  .slide-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  .slide-input-wrap:focus-within {
+    border-color: var(--accent);
+  }
+  .slide-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .slide-btn:hover { background: var(--border); }
+  .slide-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  input[type="number"] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+    padding: 8px 0;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  /* Submit button */
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    letter-spacing: 0.01em;
+  }
+  .submit-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  /* Status panel */
+  #status-panel { display: none; }
+  #status-panel.visible { display: block; }
+  .status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .status-title {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .status-badge.pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+  .status-badge.processing { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+  .status-badge.completed { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+  .status-badge.failed { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+  .status-step {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  .pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .status-badge.processing .pulse-dot { background: var(--accent); }
+  .status-badge.pending .pulse-dot { background: var(--warning); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a855f7);
+    width: 0%;
+    transition: width 0.4s ease;
+    border-radius: 100px;
+  }
+  .download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 14px 24px;
+    background: var(--success);
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: transform 0.15s;
+  }
+  .download-btn:hover { transform: translateY(-1px); }
+  .error-text {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: var(--danger);
+    font-size: 14px;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+  
+  .footer {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+  .footer strong { color: var(--text); font-weight: 500; }
+  
+  @media (max-width: 640px) {
+    body { padding: 20px 16px; }
+    .card { padding: 24px 20px; }
+    h1 { font-size: 32px; }
+    .audience-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">📄</div>
+    <h1>Doc2Slides</h1>
+    <p class="tagline">Upload a research paper. Pick your audience. Get a presentation tailored just for them.</p>
+  </div>
+  
+  <form id="upload-form">
+    <div class="card">
+      <div class="field">
+        <div class="label">Document</div>
+        <label class="drop-zone" id="drop-zone" for="file">
+          <div id="drop-empty">
+            <div class="drop-icon">📤</div>
+            <div class="drop-text">Drop a PDF here or click to browse</div>
+            <div class="drop-hint">Research papers, articles, or reports work best</div>
+          </div>
+          <div id="drop-filled" style="display: none;">
+            <div class="file-info">
+              <div class="file-name" id="file-name">-</div>
+              <div class="file-size" id="file-size">-</div>
+            </div>
+            <button type="button" class="file-remove" id="file-remove" title="Remove file">✕</button>
+          </div>
+        </label>
+        <input type="file" id="file" name="file" accept=".pdf" required />
+      </div>
+      
+      <div class="field">
+        <div class="label">Target audience</div>
+        <div class="audience-grid" id="audience-grid">
+          <div class="audience-card" data-value="kid">
+            <div class="audience-emoji">🎈</div>
+            <div class="audience-name">Kid</div>
+            <div class="audience-desc">Simple words, fun analogies, short slides</div>
+          </div>
+          <div class="audience-card selected" data-value="student">
+            <div class="audience-emoji">📚</div>
+            <div class="audience-name">Student</div>
+            <div class="audience-desc">Educational, terms defined clearly</div>
+          </div>
+          <div class="audience-card" data-value="engineer">
+            <div class="audience-emoji">⚙️</div>
+            <div class="audience-name">Engineer</div>
+            <div class="audience-desc">Technical depth, assumes domain knowledge</div>
+          </div>
+          <div class="audience-card" data-value="executive">
+            <div class="audience-emoji">💼</div>
+            <div class="audience-name">Executive</div>
+            <div class="audience-desc">Business focus, impact-oriented</div>
+          </div>
+        </div>
+        <input type="hidden" id="audience" name="audience" value="student" />
+      </div>
+      
+      <div class="field">
+        <label class="label" for="slide_count">Number of slides</label>
+        <div class="slide-input-wrap">
+          <button type="button" class="slide-btn" id="slide-minus">−</button>
+          <input type="number" id="slide_count" name="slide_count" value="10" min="3" max="50" required />
+          <button type="button" class="slide-btn" id="slide-plus">+</button>
+        </div>
+        <p class="helper">Between 3 and 50 slides. Try 5-8 for short docs, 15-25 for full papers, 30+ for theses.</p>
+      </div>
+      
+      <button type="submit" class="submit-btn" id="submit-btn">Generate Slides</button>
+    </div>
+  </form>
+  
+  <div class="card" id="status-panel">
+    <div class="status-header">
+      <div class="status-title">Job status</div>
+      <div class="status-badge" id="status-badge">
+        <span class="pulse-dot"></span>
+        <span id="status-badge-text">Pending</span>
+      </div>
+    </div>
+    <div class="status-step" id="status-step">Preparing...</div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div id="status-details"></div>
+  </div>
+</div>
+
+<div class="footer">
+  Built with <strong>FastAPI</strong> · <strong>LangGraph</strong> · <strong>OpenAI</strong> · <strong>ChromaDB</strong> · <strong>PostgreSQL</strong>
+</div>
+
+<script>
+// ── Elements ──
+const form = document.getElementById('upload-form');
+const fileInput = document.getElementById('file');
+const dropZone = document.getElementById('drop-zone');
+const dropEmpty = document.getElementById('drop-empty');
+const dropFilled = document.getElementById('drop-filled');
+const fileName = document.getElementById('file-name');
+const fileSize = document.getElementById('file-size');
+const fileRemove = document.getElementById('file-remove');
+const audienceGrid = document.getElementById('audience-grid');
+const audienceHidden = document.getElementById('audience');
+const slideCount = document.getElementById('slide_count');
+const slideMinus = document.getElementById('slide-minus');
+const slidePlus = document.getElementById('slide-plus');
+const submitBtn = document.getElementById('submit-btn');
+const statusPanel = document.getElementById('status-panel');
+const statusBadge = document.getElementById('status-badge');
+const statusBadgeText = document.getElementById('status-badge-text');
+const statusStep = document.getElementById('status-step');
+const progressFill = document.getElementById('progress-fill');
+const statusDetails = document.getElementById('status-details');
+
+const stepLabels = {
+  starting: 'Starting pipeline',
+  parser_complete: 'Extracting sections',
+  summarizer_complete: 'Summarizing content',
+  planner_complete: 'Planning slide structure',
+  writer_complete: 'Writing slide content',
+  builder_complete: 'Building PowerPoint',
+};
+const stepProgress = {
+  starting: 5,
+  parser_complete: 20,
+  summarizer_complete: 50,
+  planner_complete: 65,
+  writer_complete: 85,
+  builder_complete: 100,
+};
+
+// ── File drag/drop + selection ──
+function humanSize(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? mb.toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
+}
+function showFile(file) {
+  fileName.textContent = file.name;
+  fileSize.textContent = humanSize(file.size);
+  dropEmpty.style.display = 'none';
+  dropFilled.style.display = 'flex';
+  dropZone.classList.add('has-file');
+}
+function clearFile() {
+  fileInput.value = '';
+  dropEmpty.style.display = 'block';
+  dropFilled.style.display = 'none';
+  dropZone.classList.remove('has-file');
+}
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) showFile(e.target.files[0]);
+});
+fileRemove.addEventListener('click', (e) => { e.preventDefault(); clearFile(); });
+['dragenter', 'dragover'].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragging');
+  });
+});
+['dragleave', 'drop'].forEach(ev => {
+  dropZone.addEventListener(ev, (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+  });
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') {
+    fileInput.files = e.dataTransfer.files;
+    showFile(file);
+  }
+});
+
+// ── Audience cards ──
+audienceGrid.addEventListener('click', (e) => {
+  const card = e.target.closest('.audience-card');
+  if (!card) return;
+  audienceGrid.querySelectorAll('.audience-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  audienceHidden.value = card.dataset.value;
+});
+
+// ── Slide count buttons ──
+function clampSlideCount() {
+  let v = parseInt(slideCount.value) || 10;
+  v = Math.max(3, Math.min(50, v));
+  slideCount.value = v;
+  slideMinus.disabled = v <= 3;
+  slidePlus.disabled = v >= 50;
+}
+slideMinus.addEventListener('click', () => {
+  slideCount.value = parseInt(slideCount.value) - 1;
+  clampSlideCount();
+});
+slidePlus.addEventListener('click', () => {
+  slideCount.value = parseInt(slideCount.value) + 1;
+  clampSlideCount();
+});
+slideCount.addEventListener('blur', clampSlideCount);
+clampSlideCount();
+
+// ── Form submit ──
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clampSlideCount();
+  
+  if (!fileInput.files.length) return;
+  
+  statusPanel.classList.add('visible');
+  statusPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setStatus('pending', 'Pending', 'Uploading document...');
+  progressFill.style.width = '0%';
+  statusDetails.innerHTML = '';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Processing...';
+  
+  const formData = new FormData(form);
+  
+  try {
+    const res = await fetch('/jobs/', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    pollJob(data.job_id);
+  } catch (err) {
+    setStatus('failed', 'Failed', 'Upload failed');
+    statusDetails.innerHTML = `<div class="error-text">${err.message}</div>`;
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Try Again';
+  }
+});
+
+async function pollJob(jobId) {
+  const interval = setInterval(async () => {
+    try {
+      const res = await fetch(`/jobs/${jobId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const job = await res.json();
+      
+      const progress = stepProgress[job.current_step] || 5;
+      progressFill.style.width = progress + '%';
+      
+      if (job.status === 'completed') {
+        clearInterval(interval);
+        setStatus('completed', 'Completed', 'Your presentation is ready');
+        const downloadUrl = job.result?.download_url;
+        if (downloadUrl) {
+          statusDetails.innerHTML = `<a href="${downloadUrl}" class="download-btn" download>⬇ Download PowerPoint</a>`;
+        }
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Generate Another';
+      } else if (job.status === 'failed') {
+        clearInterval(interval);
+        setStatus('failed', 'Failed', 'Something went wrong');
+        statusDetails.innerHTML = `<div class="error-text">${job.error || 'Unknown error'}</div>`;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Try Again';
+      } else {
+        setStatus('processing', 'Processing', stepLabels[job.current_step] || 'Working...');
+      }
+    } catch (err) {
+      clearInterval(interval);
+      setStatus('failed', 'Connection lost', '');
+      statusDetails.innerHTML = `<div class="error-text">${err.message}</div>`;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Try Again';
+    }
+  }, 2000);
+}
+
+function setStatus(status, badgeText, stepText) {
+  statusBadge.className = 'status-badge ' + status;
+  statusBadgeText.textContent = badgeText;
+  statusStep.textContent = stepText;
+}
+</script>
+</body>
+</html>

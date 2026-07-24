@@ -106,10 +106,10 @@ async def create_job_endpoint(
             detail=f"Invalid audience. Must be one of: {sorted(valid_audiences)}",
         )
     
-    if slide_count not in (5, 10, 15):
+    if slide_count < 3 or slide_count > 50:
         raise HTTPException(
             status_code=400,
-            detail="slide_count must be 5, 10, or 15",
+            detail="slide_count must be between 3 and 50",
         )
     
     # Save uploaded PDF
