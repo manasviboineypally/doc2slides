@@ -1,160 +1,150 @@
+# Doc2Slides — Parser Testing Notes
+
+Tracking what works, what breaks, and why. Updated as the project evolves.
+
+---
+
+## test.pdf — Reading Model Compilation Through the Lens of Formal Theories
+**Type:** Single-column arxiv paper (cs.PL, 2026)
+
+- ✅ Detected 9 real sections after filtering
+- ✅ Body font auto-detected as 10.0
+- ✅ Abstract, Introduction, all numbered sections, Conclusion, References — all captured
+- ⚠️ Abstract heading initially detected as just "A" (drop-cap issue) — fixed via content-keyword filter
+- ⚠️ Title scrambled across columns (multi-position title text)
+- **Verdict:** Works as designed
+
+---
+
+## paper2.pdf — Vulnerability of Natural Language Classifiers (GAversary)
+**Type:** Single-column arxiv paper (cs.AI, 2026)
+
+- ✅ Detected 16 sections including sub-sections (3.1, 3.2, ..., 4.4)
+- ✅ Body font auto-detected as 10.9 (different from test.pdf)
+- ✅ Hierarchical structure preserved
+- ⚠️ Multi-line affiliation block hides the abstract section behind the affiliation line — content captured, only label is wrong
+- **Verdict:** Generalized to a different paper without modification
+
+---
+
+## column.pdf — 2001 IEEE conference paper (New Faculty 101)
+**Type:** Double-column IEEE format
+
+- ❌ Two-column layout breaks content extraction
+- ❌ Drop-cap section headings confuse detector
+- ❌ Body text from left and right columns gets interleaved
+- ✅ Parser doesn't crash — fails gracefully with weird output
+- **Verdict:** Known limitation. Future work: column-aware text extraction.
+
+---
+
+## Known limitations
+
+1. **Double-column PDFs** — text from adjacent columns gets jumbled. Affects IEEE, ACM, older Nature/Science papers.
+2. **Title detection on arxiv** — title spans page width with rotated arxiv ID; gets scrambled.
+3. **Decorative drop-caps** — first letter of section splits from body. Partial fix via content-keyword filter.
+4. **Heading inference** — relies on font size as primary signal. Documents with weak typographic hierarchy may not produce clean sections.
+5. **Affiliation blocks** — first section can appear under affiliation heading instead of "Abstract". Content captured correctly; label cosmetic.
+
+---
+
 ## Progress log
 
 ### Pydantic data models
 - Section, DocumentMetadata, ParsedDocument typed and validated
 - Parser refactored to return ParsedDocument instead of dicts
 - Auto-correct logic handles "Abstract" vs "Abstract Interpretation" disambiguation via AMBIGUOUS_PHRASES list
-- Tradeoff accepted: stricter matching would miss more abstracts than it gains; looser matching creates false positives. Current logic picks the safer side.
 
 ### LangGraph orchestration
 - Parser wrapped as first node in a StateGraph
 - Shared AgentState (TypedDict) ready for future agents
-- Successfully invoked on test.pdf and paper2.pdf via `python -m app.agents.graph`
-- Notes: Adding new agents is now a 2-line change to graph.py
+- Successfully invoked on test.pdf and paper2.pdf
+- Adding new agents is now a 2-line change to graph.py
 
 ### HTTP API
 - FastAPI endpoint `POST /jobs/` accepts PDF uploads
-- Interactive Swagger UI auto-generated at `/docs`
-- Pipeline runs synchronously per request (async upgrade planned)
-- Verified end-to-end: test.pdf → 9 sections returned as clean JSON
-- Uploaded files stay in `uploads/` between requests (no cleanup yet)
-- No job persistence — each request is independent (PostgreSQL planned)
+- Interactive Swagger UI at `/docs`
+- Verified end-to-end via HTTP flow
 
 ### ChromaDB vector store
-- Installed ChromaDB with persistent storage
-- Built chunk_text() with 500-word chunks and 50-word overlap
-- Built index_document() to chunk, embed, and store sections
-- Built search() with semantic similarity + metadata filtering
-- Verified end-to-end: semantic search returns topic-relevant chunks
-- Uses default all-MiniLM-L6-v2 embedding model (auto-downloaded ~80MB)
+- Chunk size 500 words, overlap 50 words
+- Uses default all-MiniLM-L6-v2 embedding model (~80 MB auto-download)
+- Semantic search with metadata filtering by source_file
 
 ### Summarizer agent
-- Attempted Gemini integration, hit account-specific 401 UNAUTHENTICATED errors
-- Switched to OpenAI gpt-4o-mini after extensive Gemini debugging
-- Built Summarizer agent using RAG retrieval + LLM prompt
-- Wired into LangGraph as second node (parser → summarizer → END)
-- Tested on test.pdf (9 summaries) and paper2.pdf (16 summaries)
-- Confirmed real cost: 18 API calls = $0.002 total spend
-- Notes: Clean architecture made LLM provider swap a 5-line change in summarizer.py
-
+- Attempted Gemini integration first; hit account-specific 401 UNAUTHENTICATED errors
+- Switched to OpenAI gpt-4o-mini
+- Clean architecture made LLM provider swap a 5-line change
+- Real cost verified: 18 API calls = ~$0.002 total
 
 ### Planner agent
-- Built with OpenAI gpt-4o-mini using JSON mode + Pydantic validation
-- Two-layer structured output: `response_format={"type": "json_object"}` guarantees valid JSON, Pydantic guarantees correct schema
-- Wired into LangGraph as third node (parser → summarizer → planner → END)
-- API endpoint accepts audience (kid/student/engineer/executive) and slide_count (5/10/15)
-- Verified different audiences produce meaningfully different plans (e.g., "Fun with Compilers!" for kid vs "Advancements in Compiler Design: Leveraging Formal Theories" for executive)
-- Observation: highly technical papers limit how simple even "kid" plans can be — Writer agent will need strong analogy generation
+- OpenAI gpt-4o-mini with JSON mode + Pydantic validation
+- Two-layer structured output: JSON mode guarantees valid JSON, Pydantic guarantees correct schema
+- Wired into LangGraph as third node
+- Verified different audiences produce meaningfully different plans
 
 ### Writer agent
-- Built with OpenAI gpt-4o-mini + JSON mode + Pydantic validation (Slide, WrittenDeck)
-- Reads slide_plan + section_summaries + parsed_doc; writes structured slide content
-- Each slide: title, 3-5 bullets (5-15 words each), 1-3 sentence speaker notes
 - Audience-adaptive prompts (kid/student/engineer/executive)
+- Each slide: title, 3-5 bullets (5-15 words each), 1-3 sentence speaker notes
 - Fallback stub-slide on failure so pipeline never breaks completely
-- Verified: same paper produces meaningfully different slide content per audience
-  - Kid: "Like magic spells for computers"
-  - Student: "Term rewriting uses rules to transform expressions"
 
 ### Builder agent + HTTP download endpoint
 - Uses python-pptx to generate real editable PowerPoint files
 - Title slide + one slide per written entry (title + bullets + speaker notes)
 - Output saved to outputs/ (gitignored) with format {job_id}_{doc}_{audience}_{count}slides.pptx
-- New GET /jobs/download/{filename} endpoint serves generated files with proper MIME type
-- Verified end-to-end HTTP flow: upload via Swagger → pipeline runs → download URL returned → file downloads → opens correctly in PowerPoint
-
+- GET /jobs/download/{filename} endpoint serves generated files with proper MIME type
 
 ### Design choice: Slide count and content density
 
-The Planner respects the user's requested slide count exactly. This is a
-deliberate design choice — users have real constraints (presentation time
-slots, class rules, executive attention spans) and silent AI overrides
-break user trust.
+The Planner respects the user's requested slide count exactly. Deliberate choice — users have real constraints and silent AI overrides break trust.
 
-**Tradeoff:** when the paper's actual content density doesn't match the
-requested slide count, the LLM may pad shallow sections or compress dense
-ones. This creates mild redundancy at high slide counts (e.g., 15 slides
-from a 9-section paper occasionally produces meta-slides like "References"
-or overlapping topic slides).
+Tradeoff: when the paper's actual content density doesn't match the requested slide count, the LLM may pad shallow sections or compress dense ones.
 
-**Rejected quick fix:** using section word count as a proxy for content
-density. Word count is not density — a short section may contain multiple
-distinct ideas while a long section may ramble around one idea.
+Rejected quick fix: using section word count as a proxy for content density. Word count is not density — a short section may contain multiple distinct ideas while a long section may ramble around one.
 
-**Proper solution deferred:** content-aware slide allocation with LLM
-judgment, verified by an evaluation harness that measures output quality
-against ground truth. Requires infrastructure work not appropriate for the
-initial version.
-
-**Current approach:** ship with predictable user control, document the
-tradeoff honestly, revisit with real user feedback and eval infrastructure.
-
+Proper solution deferred: content-aware slide allocation with LLM judgment, verified by an evaluation harness. Requires infrastructure not appropriate for the initial version.
 
 ### Async job processing
-
-Refactored `POST /jobs/` to return immediately (~1 second) with a job_id
-instead of blocking for 60-90 seconds while the pipeline runs. Uses FastAPI
-BackgroundTasks with a simple in-memory job store (dict).
-
-Flow:
-- POST /jobs/ → returns { job_id, status: "pending" } immediately
-- Pipeline runs in background thread (Parser → Summarizer → Planner → Writer → Builder)
-- GET /jobs/{job_id} → returns current status ("pending" → "processing" → "completed" or "failed")
-- GET /jobs/download/{filename} → serves the .pptx once completed
-
-Verified end-to-end: response time on POST is ~1s (was 60-90s). Timestamps
-show pipeline runs asynchronously — created_at and started_at within 10ms,
-completed_at 42 seconds later.
-
-Known limitation: in-memory job store means jobs disappear on server
-restart. PostgreSQL persistence is next.
-
+- Refactored POST /jobs/ to return immediately (~1s) with a job_id instead of blocking for 60-90s
+- Uses FastAPI BackgroundTasks with an in-memory job store (dict)
+- Verified: created_at and started_at timestamps within 10ms, completed_at 42s later
+- Known limitation at the time: in-memory job store meant jobs disappeared on server restart
 
 ### PostgreSQL persistence
-
-Replaced in-memory dict-based job_store with SQLAlchemy + PostgreSQL.
-
-Architecture:
-- Job model in `app/db/models.py`
-- Session management in `app/db/session.py`
-- Repository pattern in `app/api/job_store.py` (create/get/update/all_jobs)
-- Database URL from environment (`DATABASE_URL` in .env)
-
-Verified: server can be restarted mid-session, previously created jobs remain queryable via GET /jobs/{job_id} with full state (result, timestamps, etc).
-
-Design decision: env-driven database URL means SQLite dev → PostgreSQL prod is a one-line change (relevant for Day 16 deployment on Railway).
+- Replaced in-memory dict-based job_store with SQLAlchemy + PostgreSQL
+- Job model in app/db/models.py
+- Session management in app/db/session.py
+- Repository pattern in app/api/job_store.py (create/get/update/all_jobs)
+- Database URL from environment (DATABASE_URL in .env)
+- Verified: server can be restarted mid-session, previously created jobs remain queryable
+- Design decision: env-driven database URL means SQLite dev → PostgreSQL prod is a one-line change
 
 ### HTML UI
-
-Modern dark-themed single-page frontend at `static/index.html`, served 
-by FastAPI at `/`.
-
-Features:
+- Modern dark-themed single-page frontend at static/index.html
 - Drag-and-drop file upload with file info preview
-- Visual audience cards (kid/student/engineer/executive) instead of dropdown
-- Free number input for slide count (3-50) with +/- buttons
-- Real-time job polling every 2 seconds
-- Animated progress bar mapped to pipeline steps
+- Visual audience cards (kid/student/engineer/executive)
+- Free number input for slide count (3-50)
+- Real-time job polling every 2 seconds with animated progress bar
 - Status badges with color coding
-- Graceful error states
+- Chose vanilla HTML/CSS/JS over React: zero build step, portable, transparent
 
-Design choice: chose vanilla HTML/CSS/JS over React because:
-1. Zero build step — anyone can clone and run instantly
-2. Any recruiter can read the full UI in 5 minutes
-3. No framework lock-in — code is portable
-4. File is ~500 lines total, easy to grasp
+### Evaluation harness
 
-Verified end-to-end: 7 executive slides, 25 kid slides, all audiences,
-all counts from 3 to 50 work correctly. Same paper produces meaningfully
-different output based on audience selection.
+Three eval strategies matching pipeline stages:
 
+**Parser evals** (`evals/parser_eval.py`)
+- Ground truth in `evals/datasets/*_expected.json`
+- Hard assertions: section count, heading presence, content keywords
+- Result: 100% (34/34) on test.pdf + paper2.pdf
 
+**RAG evals** (`evals/rag_eval.py`)
+- Hand-labeled query→section pairs
+- Measures top-1 and top-3 precision
+- Result: 42% top-1, 57% top-3 across 7 queries
+- Known limitation revealed: hierarchical sections (3.1, 3.6) rank higher than parent sections for broad queries — sub-section retrieval issue
 
-
-
-
-
-### Evaluation harness (planned)
-- Parser: section detection precision/recall against ground truth
-- RAG: retrieval precision@K on hand-labeled query→chunk pairs
-- Summarizer: LLM-as-judge scoring on faithfulness, completeness, clarity
+**Summarizer evals** (`evals/summary_eval.py`)
+- LLM-as-judge with gpt-4o-mini
+- Scores faithfulness/completeness/clarity on 1-5 scale
+- Result: F 4.33 / C 4.0 / L 4.89 on test.pdf (9 sections)
+- Pattern observed: longer sections lose more information at 3-sentence limit

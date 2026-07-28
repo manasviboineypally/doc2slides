@@ -25,13 +25,14 @@ A multi-agent pipeline built with LangGraph:
 - **Agents:** LangGraph, LangChain
 - **LLM:** OpenAI GPT-4o-mini
 - **Vector DB:** ChromaDB
-- **PDF parsing:** pdfplumber, PyMuPDF
+- **PDF parsing:** pdfplumber
 - **PowerPoint generation:** python-pptx
-- **Database:** PostgreSQL
+- **Database:** PostgreSQL (SQLAlchemy)
+- **Frontend:** Vanilla HTML/CSS/JS (no build step)
 
 ## Current status
 
-Building in public — production-ready foundations done, AI agents in progress.
+Building in public.
 
 **✅ Completed**
 - PDF parsing with font-aware section detection
@@ -44,23 +45,17 @@ Building in public — production-ready foundations done, AI agents in progress.
 - Writer agent (audience-adaptive slide content generation)
 - Builder agent (editable .pptx file generation via python-pptx)
 - HTTP download endpoint (`GET /jobs/download/{filename}`)
-- End-to-end testing across multiple audiences
--Async job processing with polling (`POST /jobs/` returns immediately, `GET /jobs/{job_id}` for status)
-- PostgreSQL job persistence
--Modern HTML UI with drag-drop, audience cards, and real-time progress
-
+- Async job processing with polling (`POST /jobs/` returns immediately, `GET /jobs/{job_id}` for status)
+- PostgreSQL job persistence via SQLAlchemy
+- Modern HTML UI with drag-drop, audience cards, and real-time progress
+- Evaluation harness (parser assertions + RAG precision + LLM-as-judge for summaries)
 
 **🚧 In progress**
-- Deployment
-
+- Deployment to Railway
 
 **📋 Planned**
-- Async background jobs
-- PostgreSQL job persistence
-- Minimal HTML UI
-- Deployment
-
-
+- Demo video
+- Blog post write-up
 
 ## Try it locally
 
@@ -68,12 +63,35 @@ Building in public — production-ready foundations done, AI agents in progress.
 # Install dependencies
 pip install -r requirements.txt
 
+# Set up your .env file
+# OPENAI_API_KEY=your-key-here
+# DATABASE_URL=postgresql+psycopg2://postgres:PASSWORD@localhost:5432/doc2slides
+
 # Run the API
 uvicorn app.main:app --reload
 
-# Open the interactive docs
+# Open the UI
+# http://localhost:8000/
+
+# Or use the API directly
 # http://localhost:8000/docs
 ```
 
-Upload any PDF via the `/jobs/` endpoint and get back structured 
-section data extracted by the LangGraph pipeline.
+Upload any PDF, pick an audience, choose the number of slides (3-50), 
+and get back a downloadable `.pptx` deck.
+
+## Evaluation
+
+The `evals/` folder contains three evaluation strategies:
+
+- **Parser evals** — deterministic ground-truth assertions on section detection
+- **RAG evals** — top-K precision on hand-labeled query→section pairs
+- **Summarizer evals** — GPT-as-judge scoring faithfulness, completeness, clarity
+
+Run any of them individually:
+
+```bash
+python -m evals.parser_eval
+python -m evals.rag_eval
+python -m evals.summary_eval
+```
