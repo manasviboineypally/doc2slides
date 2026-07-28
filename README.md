@@ -47,10 +47,11 @@ Building in public — production-ready foundations done, AI agents in progress.
 - End-to-end testing across multiple audiences
 -Async job processing with polling (`POST /jobs/` returns immediately, `GET /jobs/{job_id}` for status)
 - PostgreSQL job persistence
+-Modern HTML UI with drag-drop, audience cards, and real-time progress
 
 
 **🚧 In progress**
--UI in progress
+- Deployment
 
 
 **📋 Planned**

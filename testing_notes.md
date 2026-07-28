@@ -124,6 +124,35 @@ Verified: server can be restarted mid-session, previously created jobs remain qu
 
 Design decision: env-driven database URL means SQLite dev → PostgreSQL prod is a one-line change (relevant for Day 16 deployment on Railway).
 
+### HTML UI
+
+Modern dark-themed single-page frontend at `static/index.html`, served 
+by FastAPI at `/`.
+
+Features:
+- Drag-and-drop file upload with file info preview
+- Visual audience cards (kid/student/engineer/executive) instead of dropdown
+- Free number input for slide count (3-50) with +/- buttons
+- Real-time job polling every 2 seconds
+- Animated progress bar mapped to pipeline steps
+- Status badges with color coding
+- Graceful error states
+
+Design choice: chose vanilla HTML/CSS/JS over React because:
+1. Zero build step — anyone can clone and run instantly
+2. Any recruiter can read the full UI in 5 minutes
+3. No framework lock-in — code is portable
+4. File is ~500 lines total, easy to grasp
+
+Verified end-to-end: 7 executive slides, 25 kid slides, all audiences,
+all counts from 3 to 50 work correctly. Same paper produces meaningfully
+different output based on audience selection.
+
+
+
+
+
+
 
 ### Evaluation harness (planned)
 - Parser: section detection precision/recall against ground truth
