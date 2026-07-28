@@ -1,0 +1,71 @@
+{
+  "source_file": "test.pdf",
+  "description": "Compiler theory paper — Reading Model Compilation Through the Lens of Formal Theories",
+  "expected_sections": [
+    {
+      "id": "sec_1",
+      "heading_contains": "Abstract",
+      "must_contain_keywords": ["MLIR", "compiler"]
+    },
+    {
+      "id": "sec_2",
+      "heading_contains": "Introduction",
+      "must_contain_keywords": ["MLIR", "compiler"]
+    },
+    {
+      "id": "sec_3",
+      "heading_contains": "Term Rewriting",
+      "must_contain_keywords": ["rewrite", "rule"]
+    },
+    {
+      "id": "sec_4",
+      "heading_contains": "Refinement",
+      "must_contain_keywords": ["refinement", "specification"]
+    },
+    {
+      "id": "sec_5",
+      "heading_contains": "Abstract Interpretation",
+      "must_contain_keywords": ["abstract", "interpretation"]
+    },
+    {
+      "id": "sec_6",
+      "heading_contains": "Other Formal",
+      "must_contain_keywords": ["type theory"]
+    },
+    {
+      "id": "sec_7",
+      "heading_contains": "Reflections",
+      "must_contain_keywords": ["design"]
+    },
+    {
+      "id": "sec_8",
+      "heading_contains": "Conclusion",
+      "must_contain_keywords": ["MLIR", "compiler"]
+    },
+    {
+      "id": "sec_9",
+      "heading_contains": "References",
+      "must_contain_keywords": []
+    }
+  ],
+  "expected_total_pages": 11,
+  "min_sections": 8,
+  "rag_queries": [
+    {
+      "query": "what is term rewriting?",
+      "expected_section_id": "sec_3"
+    },
+    {
+      "query": "how does refinement calculus work?",
+      "expected_section_id": "sec_4"
+    },
+    {
+      "query": "what is abstract interpretation?",
+      "expected_section_id": "sec_5"
+    },
+    {
+      "query": "what does the paper conclude?",
+      "expected_section_id": "sec_8"
+    }
+  ]
+}

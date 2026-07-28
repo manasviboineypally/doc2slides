@@ -1,0 +1,28 @@
+{
+  "source_file": "paper2.pdf",
+  "description": "GAversary paper — adversarial text attacks using genetic algorithms",
+  "expected_sections_min": 14,
+  "expected_headings_include": [
+    "Abstract",
+    "Introduction",
+    "Related Work",
+    "Methodology",
+    "Conclusion",
+    "References"
+  ],
+  "must_contain_keywords_overall": ["genetic algorithm", "adversarial", "NLP"],
+  "rag_queries": [
+    {
+      "query": "how does the genetic algorithm work?",
+      "expected_heading_contains": "Methodology"
+    },
+    {
+      "query": "what are the quantitative results?",
+      "expected_heading_contains": "Quantitative"
+    },
+    {
+      "query": "what are related adversarial attacks?",
+      "expected_heading_contains": "Related Work"
+    }
+  ]
+}
