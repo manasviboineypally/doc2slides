@@ -9,6 +9,14 @@ Upload a PDF, pick your target audience (10-year-old / student / engineer /
 executive), and get back a fully editable `.pptx` deck. Same document, 
 different output depending on who's reading.
 
+
+## 🚀 Live demo
+
+**Try it now:** [web-production-6eded.up.railway.app](https://web-production-6eded.up.railway.app)
+
+Upload any PDF, pick your audience, and get a downloadable PowerPoint in ~30 seconds.
+
+
 ## Architecture
 
 A multi-agent pipeline built with LangGraph:
@@ -49,9 +57,10 @@ Building in public.
 - PostgreSQL job persistence via SQLAlchemy
 - Modern HTML UI with drag-drop, audience cards, and real-time progress
 - Evaluation harness (parser assertions + RAG precision + LLM-as-judge for summaries)
+- Deployed to Railway (public URL, PostgreSQL, auto-deploy on git push)
 
 **🚧 In progress**
-- Deployment to Railway
+- Demo video
 
 **📋 Planned**
 - Demo video

@@ -148,3 +148,26 @@ Three eval strategies matching pipeline stages:
 - Scores faithfulness/completeness/clarity on 1-5 scale
 - Result: F 4.33 / C 4.0 / L 4.89 on test.pdf (9 sections)
 - Pattern observed: longer sections lose more information at 3-sentence limit
+
+### Deployment (Railway)
+
+Live URL: https://web-production-6eded.up.railway.app
+
+- Deployed as a Railway service pulling from GitHub main branch
+- PostgreSQL provisioned as a separate Railway service, connected via DATABASE_URL env var
+- OPENAI_API_KEY set as Railway variable
+- Auto-deploys on every git push to main
+- Container runtime: Python 3.13.14
+- Region: US West
+
+Verified end-to-end on production URL:
+- Upload PDF → progress polling → download .pptx works
+- Tested with real academic paper (Postcolonial Theory book excerpt)
+- Generation time: 30-40 seconds
+
+Design decision: env-driven DATABASE_URL means the local SQLite dev pattern 
+"just worked" in production. Only change needed: prefix `postgresql+psycopg2://` 
+so SQLAlchemy uses the right driver.
+
+Known limitation: Railway free trial ($5 credit) will expire after ~1 month 
+of active usage. Portfolio-worthy demo period is 25-30 days from deployment.
